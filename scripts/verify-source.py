@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 from pathlib import Path
-import sys, json, xml.etree.ElementTree as ET
+import sys, json, re, xml.etree.ElementTree as ET
 root=Path(__file__).resolve().parents[1]; errors=[]
 for pom in root.rglob('pom.xml'):
     try: ET.parse(pom)
@@ -85,8 +85,8 @@ contract=(root/'payment-contract/src/main/java/com/paymentgateway/contract/payme
 for token in ['getPayment(UUID merchantId, UUID paymentId)','reconcilePayment(UUID merchantId, UUID paymentId)']:
     if token not in contract: errors.append(f'PaymentRpcService missing merchant-owned method: {token}')
 core_impl=(root/'payment-core-service/src/main/java/com/paymentgateway/core/service/PaymentRpcServiceImpl.java').read_text()
-if 'persistence.requireOwned(id,merchantId)' not in core_impl:
-    errors.append('PaymentRpcServiceImpl must enforce merchant ownership for payment reads/reconcile')
+if len(re.findall(r'\bpersistence\.requireOwned\s*\(\s*id\s*,\s*merchantId\s*\)', core_impl)) < 2:
+    errors.append('PaymentRpcServiceImpl must enforce merchant ownership for both payment read and reconciliation')
 public_filter=(root/'api-gateway/src/main/java/com/paymentgateway/gateway/security/publictoken/PublicClientTokenFilter.java').read_text()
 for token in ['payment:create','payment:read','payment:status','customer-qr:inspect','customer-qr:pay','PUBLIC_TOKEN_REPLAY_DETECTED','GatewaySecurityHeaders.AUTH_MODE_PUBLIC_TOKEN']:
     if token not in public_filter: errors.append(f'public token filter missing {token}')

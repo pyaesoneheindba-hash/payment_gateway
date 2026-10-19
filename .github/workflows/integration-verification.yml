@@ -1,6 +1,8 @@
 name: Payment gateway integration verification
 
 on:
+  push:
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -26,31 +28,42 @@ jobs:
         run: java scripts/quality/JavaDocCoverageCheck.java .
       - name: Build and execute all Maven tests, including PostgreSQL Testcontainers tests
         run: mvn -B -U -ntp clean verify
-      - name: Assert database integration tests actually executed (not skipped)
+      - name: Assert PostgreSQL integration tests actually executed (not skipped)
         run: |
           python3 - <<'PY'
-          import glob, os, sys, xml.etree.ElementTree as ET
+          import glob
+          import os
+          import sys
+          import xml.etree.ElementTree as ET
+
+          # These are the PostgreSQL Testcontainers suites present in the repository.
           required = {
               'RefundReservationConcurrencyTest',
               'PaymentStatusEventHandlerTest',
-              'PaymentStatusEventHandlerTransactionalTest',
           }
+          reports = glob.glob('**/target/surefire-reports/TEST-*.xml', recursive=True)
+          if not reports:
+              sys.exit('FAIL: Maven produced no Surefire XML reports')
+
           found = {}
           total = failures = errors = skipped = 0
-          for path in glob.glob('**/target/surefire-reports/TEST-*.xml', recursive=True):
+          for path in reports:
               root = ET.parse(path).getroot()
               name = root.attrib.get('name', os.path.basename(path))
-              for key in required:
-                  if key in name:
-                      found[key] = path
-                      if int(root.attrib.get('tests', '0')) == 0 or int(root.attrib.get('skipped', '0')) > 0:
-                          sys.exit(f'FAIL: {key} did not execute all test cases: {path}')
-              total += int(root.attrib.get('tests', '0'))
+              suite = name.rsplit('.', 1)[-1]
+              tests_in_suite = int(root.attrib.get('tests', '0'))
+              skipped_in_suite = int(root.attrib.get('skipped', '0'))
+              if suite in required:
+                  found[suite] = path
+                  if tests_in_suite == 0 or skipped_in_suite > 0:
+                      sys.exit(f'FAIL: {suite} did not execute all test cases: {path}')
+              total += tests_in_suite
               failures += int(root.attrib.get('failures', '0'))
               errors += int(root.attrib.get('errors', '0'))
-              skipped += int(root.attrib.get('skipped', '0'))
+              skipped += skipped_in_suite
+
           print(f'Surefire summary: total={total}, failures={failures}, errors={errors}, skipped={skipped}')
-          print('Required integration tests:', found)
+          print('Required PostgreSQL integration suites:', found)
           missing = required - found.keys()
           if missing or failures or errors:
               sys.exit(f'FAIL: missing={sorted(missing)}, failures={failures}, errors={errors}')
