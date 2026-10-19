@@ -4,6 +4,7 @@ package com.paymentgateway.gateway.security.publictoken;
  * Signals a public token failure.
  */
 public class PublicTokenException extends RuntimeException {
+	private static final long serialVersionUID = 5885271221355726615L;
 	private final String code;
 
 	/**

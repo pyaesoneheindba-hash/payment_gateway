@@ -10,12 +10,12 @@ import org.springframework.scheduling.annotation.EnableScheduling;
 @SpringBootApplication
 @EnableScheduling
 public class NotificationServiceApplication {
-    /**
-     * Starts the notification service application application.
-     *
-     * @param args the args value
-     */
-    public static void main(String[] args) {
-        SpringApplication.run(NotificationServiceApplication.class, args);
-    }
+	/**
+	 * Starts the notification service application application.
+	 *
+	 * @param args the args value
+	 */
+	public static void main(String[] args) {
+		SpringApplication.run(NotificationServiceApplication.class, args);
+	}
 }
