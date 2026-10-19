@@ -1,0 +1,64 @@
+name: Payment gateway integration verification
+
+on:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  maven-integration:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '25'
+          cache: maven
+      - name: Verify Docker is available for Testcontainers
+        run: docker info
+      - name: Source consistency checks
+        run: python3 scripts/verify-source.py
+      - name: JavaDoc coverage check
+        run: java scripts/quality/JavaDocCoverageCheck.java .
+      - name: Build and execute all Maven tests, including PostgreSQL Testcontainers tests
+        run: mvn -B -U -ntp clean verify
+      - name: Assert database integration tests actually executed (not skipped)
+        run: |
+          python3 - <<'PY'
+          import glob, os, sys, xml.etree.ElementTree as ET
+          required = {
+              'RefundReservationConcurrencyTest',
+              'PaymentStatusEventHandlerTest',
+              'PaymentStatusEventHandlerTransactionalTest',
+          }
+          found = {}
+          total = failures = errors = skipped = 0
+          for path in glob.glob('**/target/surefire-reports/TEST-*.xml', recursive=True):
+              root = ET.parse(path).getroot()
+              name = root.attrib.get('name', os.path.basename(path))
+              for key in required:
+                  if key in name:
+                      found[key] = path
+                      if int(root.attrib.get('tests', '0')) == 0 or int(root.attrib.get('skipped', '0')) > 0:
+                          sys.exit(f'FAIL: {key} did not execute all test cases: {path}')
+              total += int(root.attrib.get('tests', '0'))
+              failures += int(root.attrib.get('failures', '0'))
+              errors += int(root.attrib.get('errors', '0'))
+              skipped += int(root.attrib.get('skipped', '0'))
+          print(f'Surefire summary: total={total}, failures={failures}, errors={errors}, skipped={skipped}')
+          print('Required integration tests:', found)
+          missing = required - found.keys()
+          if missing or failures or errors:
+              sys.exit(f'FAIL: missing={sorted(missing)}, failures={failures}, errors={errors}')
+          PY
+      - name: Upload Maven test reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: maven-test-reports
+          path: '**/target/surefire-reports/**'
+          if-no-files-found: ignore
