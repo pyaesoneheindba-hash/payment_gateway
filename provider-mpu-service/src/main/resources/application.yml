@@ -1,0 +1,52 @@
+spring:
+  application:
+    name: provider-mpu-service
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  http:
+    serviceclient:
+      mpu:
+        base-url: ${MPU_ACTION_URL:https://www.mpuecomuat.com/UAT/Payment/Action/api}
+        connect-timeout: ${MPU_CONNECT_TIMEOUT:5s}
+        read-timeout: ${MPU_READ_TIMEOUT:10s}
+  main:
+    web-application-type: none
+
+provider:
+  mpu:
+    merchant-id: ${MPU_MERCHANT_ID:}
+    secret-key: ${MPU_SECRET_KEY:}
+    payment-url: ${MPU_PAYMENT_URL:https://www.mpuecomuat.com/UAT/Payment/Payment/pay}
+    action-url: ${MPU_ACTION_URL:https://www.mpuecomuat.com/UAT/Payment/Action/api}
+    frontend-url: ${MPU_FRONTEND_URL:http://localhost:8086/callbacks/mpu/frontend}
+    backend-url: ${MPU_BACKEND_URL:http://localhost:8086/callbacks/mpu/backend}
+    version: ${MPU_VERSION:2.0}
+    currency-code: ${MPU_CURRENCY_CODE:104}
+    category-code: ${MPU_CATEGORY_CODE:}
+
+dubbo:
+  application:
+    name: provider-mpu-service
+    protocol: tri
+  protocol:
+    name: tri
+    port: 50053
+  registry:
+    address: nacos://${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    register-mode: all
+    use-as-config-center: false
+    use-as-metadata-center: false
+    parameters:
+      namespace: ${NACOS_NAMESPACE:public}
+  provider:
+    retries: 0

@@ -1,0 +1,38 @@
+# syntax=docker/dockerfile:1.7
+FROM maven:3.9.11-eclipse-temurin-25 AS build
+WORKDIR /workspace
+COPY . .
+RUN mvn -U -DskipTests package
+
+FROM eclipse-temurin:25-jre AS runtime-base
+WORKDIR /app
+# curl is used only by Docker health checks so Compose can wait for actual HTTP readiness.
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+ENV JAVA_OPTS=""
+ENTRYPOINT ["sh","-c","exec java $JAVA_OPTS -jar /app/app.jar"]
+
+FROM runtime-base AS api-gateway
+COPY --from=build /workspace/api-gateway/target/api-gateway-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS payment-api-service
+COPY --from=build /workspace/payment-api-service/target/payment-api-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS payment-core-service
+COPY --from=build /workspace/payment-core-service/target/payment-core-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS provider-abank-service
+COPY --from=build /workspace/provider-abank-service/target/provider-abank-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS provider-mpu-service
+COPY --from=build /workspace/provider-mpu-service/target/provider-mpu-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS provider-ayapay-service
+COPY --from=build /workspace/provider-ayapay-service/target/provider-ayapay-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS callback-service
+COPY --from=build /workspace/callback-service/target/callback-service-1.0.0-SNAPSHOT.jar /app/app.jar
+
+FROM runtime-base AS notification-service
+COPY --from=build /workspace/notification-service/target/notification-service-1.0.0-SNAPSHOT.jar /app/app.jar

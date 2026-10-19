@@ -1,0 +1,72 @@
+server:
+  port: 8083
+
+spring:
+  application:
+    name: callback-service
+  cloud:
+    nacos:
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        namespace: ${NACOS_HTTP_NAMESPACE:}
+        group: ${NACOS_HTTP_GROUP:DEFAULT_GROUP}
+        service: ${spring.application.name}
+        register-enabled: true
+        enabled: true
+        ip: ${NACOS_DISCOVERY_IP:}
+        cluster-name: ${NACOS_HTTP_CLUSTER:DEFAULT}
+        metadata:
+          protocol: http
+          management-path: /actuator
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+dubbo:
+  application:
+    name: callback-service
+    protocol: tri
+  protocol:
+    name: tri
+    port: -1
+  registry:
+    address: nacos://${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    register-mode: all
+    use-as-config-center: false
+    use-as-metadata-center: false
+    parameters:
+      namespace: ${NACOS_NAMESPACE:public}
+  consumer:
+    check: false
+    protocol: tri
+
+provider:
+  mpu:
+    secret-key: ${MPU_SECRET_KEY:}
+  ayapay:
+    decryption-key: ${AYA_DECRYPTION_KEY:}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,nacosdiscovery
+  endpoint:
+    health:
+      probes:
+        enabled: true

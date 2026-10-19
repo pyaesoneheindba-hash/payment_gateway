@@ -1,0 +1,11 @@
+{
+  "name": "@txnhub/sdk",
+  "version": "1.0.0",
+  "description": "TXN HUB merchant SDK with Ed25519 PGSIG1 signing",
+  "type": "module",
+  "main": "src/index.js",
+  "exports": "./src/index.js",
+  "engines": {"node": ">=18"},
+  "scripts": {"test": "node test-vector.js"},
+  "license": "UNLICENSED"
+}

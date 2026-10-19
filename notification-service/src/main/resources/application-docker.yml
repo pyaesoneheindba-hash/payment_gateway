@@ -1,0 +1,32 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  data:
+    redis:
+      host: redis
+      port: 6379
+  datasource:
+    url: jdbc:postgresql://postgres:5432/payment_gateway
+    username: payment
+    password: payment
+
+payment:
+  portal-live:
+    enabled: true
+    redis-channel: txnhub.portal.payment-events
+  webhook:
+    delivery:
+      enabled: true
+      signing-key-id: payment-gateway-webhook-dev-01
+      private-key-path: /run/payment-gateway/secrets/payment-gateway-webhook-dev-01-private.pem
+      # Local Docker test receiver may be HTTP/private. Never use these in production.
+      allow-http: true
+      allow-private-addresses: true
+  rocketmq:
+    enabled: true
+    endpoints: rmqbroker:8081
+    ssl-enabled: false
+    topic: payment_lifecycle_v1
+    payment-status-tag: PAYMENT_STATUS_CHANGED
+    consumer-group: notification-payment-status-v1

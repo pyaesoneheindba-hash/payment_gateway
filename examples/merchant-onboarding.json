@@ -1,0 +1,14 @@
+{
+  "merchantCode": "ACME-MM-001",
+  "merchantName": "ACME Myanmar",
+  "environment": "UAT",
+  "contactEmail": "payments@acme.example",
+  "redirectUrl": "https://merchant.example/payment/result",
+  "webhookUrl": "https://merchant.example/webhooks/payment-status",
+  "webhookDescription": "Primary payment status webhook",
+  "portalEmail": "admin@acme.example",
+  "portalUsername": "merchant.admin",
+  "portalDisplayName": "Merchant Administrator",
+  "portalTemporaryPassword": "REPLACE_WITH_SECURE_TEMPORARY_PASSWORD",
+  "portalRequirePasswordChange": true
+}

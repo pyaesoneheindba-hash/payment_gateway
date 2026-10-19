@@ -1,0 +1,23 @@
+# Local secrets / provider credentials
+.env
+.runtime-secrets/
+keys/*
+!keys/.gitkeep
+*-private.pem
+
+# Maven / IDE outputs
+**/target/
+.settings/
+.project
+.idea/
+.vscode/
+
+# Local request/test artifacts
+abank-request.json
+examples/*-local.json
+examples/abank-webhook-test-*.json
+
+# Angular workspace outputs
+frontend/angular-workspace/node_modules/
+frontend/angular-workspace/dist/
+frontend/angular-workspace/.angular/

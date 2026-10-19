@@ -1,0 +1,10 @@
+{
+  "subject": "checkout-abank-000001",
+  "scopes": ["payment:create", "payment:status"],
+  "ttlSeconds": 900,
+  "merchantOrderId": "ABANK000001",
+  "amountMinor": 2000,
+  "currency": "MMK",
+  "providerCode": "ABANK_APLUS",
+  "oneTime": true
+}

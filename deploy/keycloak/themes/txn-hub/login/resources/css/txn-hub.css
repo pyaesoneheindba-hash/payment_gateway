@@ -1,0 +1,23 @@
+/* TXN HUB brand overlay for the Keycloak login theme. */
+#kc-header-wrapper {
+  font-size: 0 !important;
+  line-height: 0 !important;
+  text-align: center;
+}
+
+#kc-header-wrapper::before {
+  content: "";
+  display: block;
+  width: min(390px, 74vw);
+  height: 126px;
+  margin: 0 auto 18px;
+  background: url('../img/txn-hub-logo.png') center / contain no-repeat;
+}
+
+@media (max-width: 600px) {
+  #kc-header-wrapper::before {
+    width: min(300px, 80vw);
+    height: 96px;
+    margin-bottom: 12px;
+  }
+}

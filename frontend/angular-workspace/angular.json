@@ -1,0 +1,108 @@
+{
+  "$schema": "./node_modules/@angular/cli/lib/config/schema.json",
+  "version": 1,
+  "newProjectRoot": "projects",
+  "projects": {
+    "checkout-web": {
+      "projectType": "application",
+      "root": "projects/checkout-web",
+      "sourceRoot": "projects/checkout-web/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/checkout-web/src/main.ts",
+            "tsConfig": "projects/checkout-web/tsconfig.app.json",
+            "index": "projects/checkout-web/src/index.html",
+            "styles": [
+              "projects/checkout-web/src/styles.css"
+            ],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "branding",
+                "output": "assets/branding"
+              }
+            ]
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "checkout-web:build",
+            "proxyConfig": "projects/checkout-web/proxy.conf.json"
+          }
+        }
+      }
+    },
+    "merchant-portal": {
+      "projectType": "application",
+      "root": "projects/merchant-portal",
+      "sourceRoot": "projects/merchant-portal/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/merchant-portal/src/main.ts",
+            "tsConfig": "projects/merchant-portal/tsconfig.app.json",
+            "index": "projects/merchant-portal/src/index.html",
+            "styles": [
+              "projects/merchant-portal/src/styles.css"
+            ],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "branding",
+                "output": "assets/branding"
+              },
+              {
+                "glob": "**/*",
+                "input": "sdk-downloads",
+                "output": "assets/sdk"
+              }
+            ]
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "merchant-portal:build",
+            "proxyConfig": "projects/merchant-portal/proxy.conf.json"
+          }
+        }
+      }
+    },
+    "admin-portal": {
+      "projectType": "application",
+      "root": "projects/admin-portal",
+      "sourceRoot": "projects/admin-portal/src",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:application",
+          "options": {
+            "browser": "projects/admin-portal/src/main.ts",
+            "tsConfig": "projects/admin-portal/tsconfig.app.json",
+            "index": "projects/admin-portal/src/index.html",
+            "styles": [
+              "projects/admin-portal/src/styles.css"
+            ],
+            "assets": [
+              {
+                "glob": "**/*",
+                "input": "branding",
+                "output": "assets/branding"
+              }
+            ]
+          }
+        },
+        "serve": {
+          "builder": "@angular/build:dev-server",
+          "options": {
+            "buildTarget": "admin-portal:build",
+            "proxyConfig": "projects/admin-portal/proxy.conf.json"
+          }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,8 @@
+{
+  "merchantOrderId": "ABANK-UAT-EXAMPLE-001",
+  "amountMinor": 2000,
+  "currency": "MMK",
+  "description": "ABank UAT payment test",
+  "providerCode": "ABANK_APLUS",
+  "providerOptions": {}
+}

@@ -1,0 +1,49 @@
+spring:
+  application:
+    name: provider-abank-service
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+  http:
+    serviceclient:
+      abank:
+        base-url: ${ABANK_BASE_URL:https://merchant-thirdparty-api-uat.abdev.net/acquiring-qr-service}
+        connect-timeout: ${ABANK_CONNECT_TIMEOUT:5s}
+        read-timeout: ${ABANK_READ_TIMEOUT:10s}
+  main:
+    web-application-type: none
+
+provider:
+  abank:
+    base-url: ${ABANK_BASE_URL:https://merchant-thirdparty-api-uat.abdev.net/acquiring-qr-service}
+    secret-key: ${ABANK_SECRET_KEY:}
+    eccode: ${ABANK_ECCODE:}
+    merchant-id: ${ABANK_MERCHANT_ID:}
+
+dubbo:
+  application:
+    name: provider-abank-service
+    protocol: tri
+  protocol:
+    name: tri
+    port: 50052
+  registry:
+    address: nacos://${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    register-mode: all
+    use-as-config-center: false
+    use-as-metadata-center: false
+    parameters:
+      namespace: ${NACOS_NAMESPACE:public}
+  provider:
+    retries: 0

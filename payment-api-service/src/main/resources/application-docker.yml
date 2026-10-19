@@ -1,0 +1,49 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  cloud:
+    nacos:
+      discovery:
+        server-addr: nacos:8848
+        username: nacos
+        password: nacos
+  data:
+    redis:
+      host: redis
+      port: 6379
+  datasource:
+    url: jdbc:postgresql://postgres:5432/payment_gateway
+    username: payment
+    password: payment
+
+dubbo:
+  registry:
+    address: nacos://nacos:8848
+    username: nacos
+    password: nacos
+
+payment:
+  portal-live:
+    enabled: true
+    redis-channel: txnhub.portal.payment-events
+    sse-timeout-ms: 1800000
+    heartbeat-ms: 15000
+  redirect:
+    registration:
+      # Local Docker development only. Production remains HTTPS/non-localhost.
+      allow-http: true
+      allow-localhost: true
+  checkout:
+    public-base-url: http://localhost:4200
+  webhook:
+    registration:
+      # Local Docker development only. Production stays HTTPS/private-address denied.
+      allow-http: true
+      allow-private-addresses: true
+
+  identity:
+    keycloak:
+      admin-base-url: http://keycloak:8080
+      realm: payment-gateway
+      client-id: payment-gateway-user-admin

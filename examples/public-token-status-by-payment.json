@@ -1,0 +1,7 @@
+{
+  "subject": "checkout-status",
+  "scopes": ["payment:status"],
+  "ttlSeconds": 900,
+  "paymentId": "REPLACE-WITH-PAYMENT-UUID",
+  "oneTime": false
+}

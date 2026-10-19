@@ -1,0 +1,489 @@
+name: payment-gateway-dev
+
+x-java-common: &java-common
+  restart: unless-stopped
+  networks: [payment-net]
+  environment: &java-env
+    SPRING_PROFILES_ACTIVE: docker
+    TZ: Asia/Yangon
+  logging:
+    options:
+      max-size: "20m"
+      max-file: "3"
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: payment_gateway
+      POSTGRES_USER: payment
+      POSTGRES_PASSWORD: payment
+    ports:
+      - "127.0.0.1:15432:5432"
+    volumes:
+      - payment-postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U payment -d payment_gateway"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [payment-net]
+
+  redis:
+    image: redis:7.4-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    ports:
+      - "127.0.0.1:16379:6379"
+    volumes:
+      - payment-redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+    networks: [payment-net]
+
+  nacos:
+    image: nacos/nacos-server:v2.5.1
+    restart: unless-stopped
+    environment:
+      MODE: standalone
+      NACOS_AUTH_ENABLE: "false"
+      JVM_XMS: 256m
+      JVM_XMX: 512m
+      JVM_XMN: 128m
+    ports:
+      - "127.0.0.1:18848:8848"
+      - "127.0.0.1:19848:9848"
+    healthcheck:
+      # Wait for Nacos HTTP readiness AND its gRPC port. A merely started
+      # container is not enough; clients otherwise fail with status STARTING.
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/8848; printf \"GET /nacos/v1/console/health/readiness HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"200\" <&3; exec 4<>/dev/tcp/127.0.0.1/9848'"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+    networks: [payment-net]
+
+  keycloak:
+    image: quay.io/keycloak/keycloak:26.8.0
+    restart: unless-stopped
+    command: ["start-dev", "--import-realm"]
+    environment:
+      KC_BOOTSTRAP_ADMIN_USERNAME: admin
+      KC_BOOTSTRAP_ADMIN_PASSWORD: ${DEV_KEYCLOAK_ADMIN_PASSWORD:?Run scripts/dev-stack.ps1 up to generate local credentials}
+      KC_HOSTNAME: http://localhost:8180
+      KC_HTTP_ENABLED: "true"
+      KC_HEALTH_ENABLED: "true"
+      # Used only by Keycloak realm import placeholder replacement. Generated into .env by dev-stack.
+      DEV_PORTAL_ADMIN_PASSWORD: ${DEV_PORTAL_ADMIN_PASSWORD:?Run scripts/dev-stack.ps1 up to generate local credentials}
+      DEV_KEYCLOAK_USER_ADMIN_CLIENT_SECRET: ${DEV_KEYCLOAK_USER_ADMIN_CLIENT_SECRET:?Run scripts/dev-stack.ps1 up to generate local credentials}
+    ports:
+      - "127.0.0.1:8180:8080"
+    volumes:
+      # Persist dynamically provisioned merchant users across container recreations.
+      # dev-stack.ps1/dev-stack.sh performs a one-time migration from the old
+      # ephemeral Keycloak container into this volume when possible.
+      - payment-keycloak-data:/opt/keycloak/data
+      - ./deploy/keycloak/payment-gateway-realm.json:/opt/keycloak/data/import/payment-gateway-realm.json:ro
+      - ./deploy/keycloak/themes:/opt/keycloak/themes:ro
+    healthcheck:
+      # Keycloak's official image intentionally does not ship curl. Use bash TCP
+      # against the management health endpoint enabled above.
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/9000; printf \"GET /health/ready HTTP/1.1\\r\\nHost: localhost\\r\\nConnection: close\\r\\n\\r\\n\" >&3; grep -q \"200 OK\" <&3'"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+    networks: [payment-net]
+
+  rmqnamesrv:
+    image: apache/rocketmq:5.3.2
+    restart: unless-stopped
+    environment:
+      # The official 5.3.2 image defaults to a much larger heap. This local
+      # stack runs many JVMs together, so keep NameServer deliberately small.
+      HEAP_OPTS: "-Xms256m -Xmx512m -Xmn128m"
+    command: sh mqnamesrv
+    ports:
+      - "127.0.0.1:19876:9876"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/9876'"]
+      interval: 5s
+      timeout: 3s
+      retries: 30
+      start_period: 10s
+    networks: [payment-net]
+
+  # The apache/rocketmq:5.3.2 image runs as uid/gid 3000. A newly-created
+  # Docker named volume can otherwise be root-owned, causing broker store
+  # initialization to fail before MessageStore is assigned. RocketMQ then
+  # emits a misleading ScheduleMessageService NPE while shutting down.
+  rocketmq-storage-init:
+    image: apache/rocketmq:5.3.2
+    user: "0:0"
+    restart: "no"
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -eu
+        mkdir -p /home/rocketmq/store
+        chown -R 3000:3000 /home/rocketmq/store
+        chmod 0755 /home/rocketmq/store
+        echo 'RocketMQ store volume permissions are ready.'
+    volumes:
+      - payment-rocketmq-store:/home/rocketmq/store
+
+  rmqbroker:
+    image: apache/rocketmq:5.3.2
+    restart: unless-stopped
+    depends_on:
+      rmqnamesrv:
+        condition: service_healthy
+      rocketmq-storage-init:
+        condition: service_completed_successfully
+    environment:
+      NAMESRV_ADDR: rmqnamesrv:9876
+      # Keep 5.3.2 + local Proxy, but avoid its 2 GiB default heap starving
+      # the rest of the all-in-one development stack on Docker Desktop.
+      HEAP_OPTS: "-Xms512m -Xmx1024m -Xmn256m -XX:MaxDirectMemorySize=512m"
+    command: >-
+      sh mqbroker --enable-proxy
+      -c /home/rocketmq/rocketmq-5.3.2/conf/broker.conf
+    volumes:
+      - ./deploy/rocketmq/broker.conf:/home/rocketmq/rocketmq-5.3.2/conf/broker.conf:ro
+      - payment-rocketmq-store:/home/rocketmq/store
+    ports:
+      - "127.0.0.1:10911:10911"
+      - "127.0.0.1:18081:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/10911; exec 4<>/dev/tcp/127.0.0.1/8081'"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+    networks: [payment-net]
+
+  rocketmq-init:
+    image: apache/rocketmq:5.3.2
+    depends_on:
+      rmqbroker:
+        condition: service_healthy
+    restart: "no"
+    networks: [payment-net]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until sh /home/rocketmq/rocketmq-5.3.2/bin/mqadmin clusterList -n rmqnamesrv:9876 >/dev/null 2>&1; do
+          echo 'Waiting for RocketMQ broker...'; sleep 2;
+        done
+        sh /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateTopic -n rmqnamesrv:9876 -c DefaultCluster -t payment_lifecycle_v1
+        sh /home/rocketmq/rocketmq-5.3.2/bin/mqadmin updateSubGroup -n rmqnamesrv:9876 -c DefaultCluster -g notification-payment-status-v1
+        echo 'RocketMQ topic and consumer group are ready.'
+
+  payment-core-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: payment-core-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+    healthcheck:
+      # Payment Core is a non-HTTP Dubbo service. The Triple port opens only
+      # after Spring/Flyway/Dubbo startup has progressed far enough to serve RPC.
+      test: ["CMD-SHELL", "bash -ec 'exec 3<>/dev/tcp/127.0.0.1/50051'"]
+      interval: 5s
+      timeout: 3s
+      retries: 40
+      start_period: 20s
+
+  schema-ready:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      payment-core-service:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: payment
+    networks: [payment-net]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until psql -h postgres -U payment -d payment_gateway -tAc "SELECT to_regclass('public.merchant') IS NOT NULL AND to_regclass('public.outbox_event') IS NOT NULL AND EXISTS (SELECT 1 FROM flyway_schema_history WHERE success AND version='4')" | grep -q t; do
+          echo 'Waiting for Payment Core Flyway migrations through V4...'; sleep 2;
+        done
+        echo 'Database schema is ready.'
+
+  provider-abank-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: provider-abank-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    environment:
+      <<: *java-env
+      ABANK_SECRET_KEY: ${ABANK_SECRET_KEY:-}
+      ABANK_ECCODE: ${ABANK_ECCODE:-}
+      ABANK_MERCHANT_ID: ${ABANK_MERCHANT_ID:-}
+      ABANK_BASE_URL: ${ABANK_BASE_URL:-https://merchant-thirdparty-api-uat.abdev.net/acquiring-qr-service}
+
+  provider-mpu-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: provider-mpu-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    environment:
+      <<: *java-env
+      MPU_MERCHANT_ID: ${MPU_MERCHANT_ID:-}
+      MPU_SECRET_KEY: ${MPU_SECRET_KEY:-}
+      MPU_CATEGORY_CODE: ${MPU_CATEGORY_CODE:-}
+      MPU_FRONTEND_URL: ${MPU_FRONTEND_URL:-http://localhost:8086/callbacks/mpu/frontend}
+      MPU_BACKEND_URL: ${MPU_BACKEND_URL:-http://localhost:8086/callbacks/mpu/backend}
+
+  provider-ayapay-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: provider-ayapay-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    environment:
+      <<: *java-env
+      AYA_CONSUMER_KEY: ${AYA_CONSUMER_KEY:-}
+      AYA_CONSUMER_SECRET: ${AYA_CONSUMER_SECRET:-}
+      AYA_MERCHANT_PHONE: ${AYA_MERCHANT_PHONE:-}
+      AYA_MERCHANT_PASSWORD: ${AYA_MERCHANT_PASSWORD:-}
+      AYA_DECRYPTION_KEY: ${AYA_DECRYPTION_KEY:-}
+      AYA_QR_SERVICE_CODE: ${AYA_QR_SERVICE_CODE:-}
+      AYA_PUSH_SERVICE_CODE: ${AYA_PUSH_SERVICE_CODE:-}
+      AYA_BASE_URL: ${AYA_BASE_URL:-https://opensandbox.ayainnovation.com}
+
+  payment-api-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: payment-api-service
+    environment:
+      <<: *java-env
+      PORTAL_IDENTITY_KEYCLOAK_CLIENT_SECRET: ${DEV_KEYCLOAK_USER_ADMIN_CLIENT_SECRET:?Run scripts/dev-stack.ps1 up to generate local credentials}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      payment-core-service:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    ports:
+      - "127.0.0.1:8087:8081"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8081/actuator/health/readiness >/dev/null"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+
+  callback-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: callback-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      payment-core-service:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    environment:
+      <<: *java-env
+      MPU_SECRET_KEY: ${MPU_SECRET_KEY:-}
+      AYA_DECRYPTION_KEY: ${AYA_DECRYPTION_KEY:-}
+    ports:
+      - "127.0.0.1:8083:8083"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8083/actuator/health/readiness >/dev/null"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+
+  api-gateway:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: api-gateway
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      nacos:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+      payment-api-service:
+        condition: service_healthy
+      callback-service:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    volumes:
+      - ./.runtime-secrets:/run/payment-gateway/secrets:ro
+    ports:
+      - "127.0.0.1:8086:8086"
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS http://127.0.0.1:8086/actuator/health/readiness >/dev/null"]
+      interval: 5s
+      timeout: 4s
+      retries: 40
+      start_period: 20s
+
+  notification-service:
+    <<: *java-common
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.backend
+      target: notification-service
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+      rocketmq-init:
+        condition: service_completed_successfully
+    volumes:
+      - ./.runtime-secrets:/run/payment-gateway/secrets:ro
+
+  dev-seed:
+    image: postgres:16-alpine
+    restart: "no"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      schema-ready:
+        condition: service_completed_successfully
+    environment:
+      PGPASSWORD: payment
+    volumes:
+      - ./deploy/dev/seed-portal-user.sql:/seed/seed-portal-user.sql:ro
+    networks: [payment-net]
+    entrypoint: ["/bin/sh", "-c"]
+    command:
+      - |
+        set -e
+        until [ "$(psql -h postgres -U payment -d payment_gateway -tAc "SELECT to_regclass('public.portal_user') IS NOT NULL")" = "t" ]; do
+          echo 'Waiting for Flyway portal_user migration...'; sleep 2;
+        done
+        psql -h postgres -U payment -d payment_gateway -v ON_ERROR_STOP=1 -f /seed/seed-portal-user.sql
+        echo 'Development portal SUPER_ADMIN is ready.'
+
+  checkout-web:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+      target: checkout-web
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+    ports:
+      - "127.0.0.1:4200:80"
+    networks: [payment-net]
+
+  merchant-portal:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+      target: merchant-portal
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      OIDC_BROWSER_BASE_URL: ${OIDC_BROWSER_BASE_URL:-http://localhost:8180}
+      GATEWAY_BROWSER_BASE_URL: ${GATEWAY_BROWSER_BASE_URL:-http://localhost:8086}
+    ports:
+      - "127.0.0.1:4201:80"
+    networks: [payment-net]
+
+  admin-portal:
+    build:
+      context: .
+      dockerfile: deploy/docker/Dockerfile.frontend
+      target: admin-portal
+    restart: unless-stopped
+    depends_on:
+      api-gateway:
+        condition: service_healthy
+      keycloak:
+        condition: service_healthy
+    environment:
+      OIDC_BROWSER_BASE_URL: ${OIDC_BROWSER_BASE_URL:-http://localhost:8180}
+      GATEWAY_BROWSER_BASE_URL: ${GATEWAY_BROWSER_BASE_URL:-http://localhost:8086}
+    ports:
+      - "127.0.0.1:4202:80"
+    networks: [payment-net]
+
+  merchant-webhook-receiver:
+    image: mendhak/http-https-echo:42
+    restart: unless-stopped
+    ports:
+      - "127.0.0.1:18090:8080"
+    networks: [payment-net]
+
+networks:
+  payment-net:
+    driver: bridge
+
+volumes:
+  payment-postgres:
+  payment-redis:
+  payment-rocketmq-store:
+  payment-keycloak-data:
+    name: payment-gateway-dev-keycloak-data

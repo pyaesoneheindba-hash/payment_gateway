@@ -1,0 +1,82 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <base href="/">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+  <meta name="theme-color" content="#ffffff">
+  <title>Payment Checkout</title>
+  
+  <style>
+    /* Initial TXN HUB boot splash. Inline so it paints before Angular/CSS bundles load. */
+    #txn-hub-boot-splash {
+      position: fixed;
+      inset: 0;
+      z-index: 2147483647;
+      display: grid;
+      place-items: center;
+      padding: max(20px, env(safe-area-inset-top)) max(20px, env(safe-area-inset-right)) max(20px, env(safe-area-inset-bottom)) max(20px, env(safe-area-inset-left));
+      background: #ffffff;
+      opacity: 1;
+      visibility: visible;
+      transition: opacity .28s ease, visibility .28s ease;
+    }
+    #txn-hub-boot-splash.txn-hub-splash--leaving {
+      opacity: 0;
+      visibility: hidden;
+      pointer-events: none;
+    }
+    #txn-hub-boot-splash img {
+      display: block;
+      width: min(480px, 72vw);
+      height: auto;
+      max-height: min(480px, 72vh);
+      object-fit: contain;
+    }
+    @media (max-width: 640px) {
+      #txn-hub-boot-splash img { width: min(360px, 88vw); max-height: 62vh; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      #txn-hub-boot-splash { transition: none; }
+    }
+  </style>
+</head>
+<body>
+  <div id="txn-hub-boot-splash" role="status" aria-live="polite" aria-label="Loading TXN HUB">
+    <img src="/assets/branding/txn-hub-animated-logo.gif" alt="TXN HUB — Transaction Hub">
+  </div>
+  <app-root></app-root>
+  <script>
+    (() => {
+      const splash = document.getElementById('txn-hub-boot-splash');
+      const root = document.querySelector('app-root');
+      if (!splash || !root) return;
+
+      const startedAt = performance.now();
+      const minimumVisibleMs = 1750; // lets the supplied logo animation be seen on fast loads
+      let dismissed = false;
+
+      const dismiss = () => {
+        if (dismissed) return;
+        dismissed = true;
+        const wait = Math.max(0, minimumVisibleMs - (performance.now() - startedAt));
+        window.setTimeout(() => {
+          splash.classList.add('txn-hub-splash--leaving');
+          window.setTimeout(() => splash.remove(), 320);
+        }, wait);
+      };
+
+      const observer = new MutationObserver(() => {
+        if (root.childNodes.length > 0) {
+          observer.disconnect();
+          requestAnimationFrame(() => requestAnimationFrame(dismiss));
+        }
+      });
+      observer.observe(root, { childList: true, subtree: true });
+
+      // Fail-safe: never leave users trapped behind the splash if application startup fails slowly.
+      window.setTimeout(() => { observer.disconnect(); dismiss(); }, 7000);
+    })();
+  </script>
+</body>
+</html>

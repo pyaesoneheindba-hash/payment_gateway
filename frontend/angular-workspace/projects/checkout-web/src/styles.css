@@ -1,0 +1,17 @@
+*{box-sizing:border-box}body{margin:0;font-family:Inter,Arial,sans-serif;background:#f5f7fb;color:#182230}button,input,select,textarea{font:inherit}.shell{max-width:1180px;margin:0 auto;padding:24px}.card{background:#fff;border:1px solid #e6eaf0;border-radius:14px;padding:20px;box-shadow:0 6px 20px rgba(20,30,50,.05)}.grid{display:grid;gap:16px}.grid-4{grid-template-columns:repeat(auto-fit,minmax(180px,1fr))}.metric{font-size:28px;font-weight:700}.muted{color:#667085}.btn{border:0;border-radius:9px;padding:10px 14px;background:#153e75;color:#fff;cursor:pointer}.btn.secondary{background:#eef2f7;color:#243b53}.input{width:100%;padding:10px 12px;border:1px solid #cfd8e3;border-radius:8px}table{width:100%;border-collapse:collapse}th,td{text-align:left;padding:11px;border-bottom:1px solid #edf1f5;font-size:14px}nav{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:20px}nav a{color:#153e75;text-decoration:none;padding:8px 10px;border-radius:8px;background:#eef4ff}.error{color:#b42318}.success{color:#067647}
+/* TXN HUB branding */
+.checkout-brand{display:flex;justify-content:center;align-items:center;margin:0 auto 18px}.checkout-brand-logo{display:block;width:230px;max-width:78vw;height:auto;object-fit:contain}
+
+/* Responsive hosted checkout */
+.card img[alt="Payment QR"]{max-width:100%;height:auto}
+@media(max-width:600px){
+  .shell{padding:14px!important;padding-top:24px!important}
+  .card{padding:16px;border-radius:12px}
+  .checkout-brand-logo{width:190px;max-width:72vw}
+  h2{font-size:21px}.metric{font-size:24px}
+}
+@media(max-width:360px){
+  .shell{padding:8px!important;padding-top:16px!important}
+  .card{padding:13px}
+  .checkout-brand-logo{width:165px}
+}

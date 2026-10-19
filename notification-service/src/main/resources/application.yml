@@ -1,0 +1,60 @@
+spring:
+  application:
+    name: notification-service
+  main:
+    web-application-type: none
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      timeout: 3s
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  task:
+    scheduling:
+      pool:
+        size: 2
+
+payment:
+  portal-live:
+    enabled: ${PORTAL_LIVE_ENABLED:false}
+    redis-channel: ${PORTAL_LIVE_REDIS_CHANNEL:txnhub.portal.payment-events}
+  webhook:
+    delivery:
+      # Explicit opt-in: configure a gateway webhook signing key before enabling.
+      enabled: ${PAYMENT_WEBHOOK_ENABLED:false}
+      signing-key-id: ${PAYMENT_WEBHOOK_SIGNING_KEY_ID:payment-gateway-webhook-2026-01}
+      private-key-path: ${PAYMENT_WEBHOOK_PRIVATE_KEY_PATH:keys/payment-gateway-webhook-private.pem}
+      allow-http: ${PAYMENT_WEBHOOK_ALLOW_HTTP:false}
+      allow-private-addresses: ${PAYMENT_WEBHOOK_ALLOW_PRIVATE_ADDRESSES:false}
+      connect-timeout-ms: ${PAYMENT_WEBHOOK_CONNECT_TIMEOUT_MS:3000}
+      request-timeout-ms: ${PAYMENT_WEBHOOK_REQUEST_TIMEOUT_MS:5000}
+      delivery-batch-size: ${PAYMENT_WEBHOOK_DELIVERY_BATCH_SIZE:20}
+      max-attempts: ${PAYMENT_WEBHOOK_MAX_ATTEMPTS:6}
+      stale-claim-seconds: ${PAYMENT_WEBHOOK_STALE_CLAIM_SECONDS:60}
+      retry-delays-seconds: 10,30,120,600,1800
+
+  rocketmq:
+    # RocketMQ 5 Java client connects to Proxy endpoints (normally port 8081), not NameServer 9876.
+    enabled: ${ROCKETMQ_ENABLED:false}
+    endpoints: ${ROCKETMQ_ENDPOINTS:127.0.0.1:8081}
+    ssl-enabled: ${ROCKETMQ_SSL_ENABLED:false}
+    access-key: ${ROCKETMQ_ACCESS_KEY:}
+    secret-key: ${ROCKETMQ_SECRET_KEY:}
+    topic: ${ROCKETMQ_PAYMENT_TOPIC:payment_lifecycle_v1}
+    payment-status-tag: ${ROCKETMQ_PAYMENT_STATUS_TAG:PAYMENT_STATUS_CHANGED}
+    consumer-group: ${ROCKETMQ_NOTIFICATION_CONSUMER_GROUP:notification-payment-status-v1}
+    outbox-batch-size: ${ROCKETMQ_OUTBOX_BATCH_SIZE:50}
+    max-publish-attempts: ${ROCKETMQ_MAX_PUBLISH_ATTEMPTS:20}
+    publish-retry-base-seconds: ${ROCKETMQ_PUBLISH_RETRY_BASE_SECONDS:2}
+    publish-retry-max-seconds: ${ROCKETMQ_PUBLISH_RETRY_MAX_SECONDS:60}
+    outbox-poll-ms: ${ROCKETMQ_OUTBOX_POLL_MS:500}
+    stale-claim-seconds: ${ROCKETMQ_STALE_CLAIM_SECONDS:60}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

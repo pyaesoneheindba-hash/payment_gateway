@@ -1,0 +1,4 @@
+{
+  "url": "https://merchant.example.com/webhooks/payment-status",
+  "description": "Production payment status webhook"
+}

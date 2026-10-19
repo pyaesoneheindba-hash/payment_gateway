@@ -1,0 +1,10 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "txnhub-sdk"
+version = "1.0.0"
+description = "TXN HUB merchant SDK with Ed25519 PGSIG1 signing"
+requires-python = ">=3.10"
+dependencies = ["cryptography>=45.0"]

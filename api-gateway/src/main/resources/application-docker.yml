@@ -1,0 +1,40 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          # Token issuer is browser-visible; JWK retrieval uses the Docker network.
+          issuer-uri: http://localhost:8180/realms/payment-gateway
+          jwk-set-uri: http://keycloak:8080/realms/payment-gateway/protocol/openid-connect/certs
+  r2dbc:
+    url: r2dbc:postgresql://postgres:5432/payment_gateway
+    username: payment
+    password: payment
+  data:
+    redis:
+      host: redis
+      port: 6379
+  cloud:
+    nacos:
+      discovery:
+        server-addr: nacos:8848
+        username: nacos
+        password: nacos
+
+payment:
+  portal-live:
+    redis-channel: txnhub.portal.payment-events
+    heartbeat-ms: 15000
+    redis-retry-min-ms: 1000
+    redis-retry-max-ms: 10000
+  security:
+    public-token:
+      # Local Docker stack mounts this secret file. No HMAC secret is needed in the environment.
+      hmac-secret-base64: ""
+      hmac-secret-file: /run/payment-gateway/secrets/public-token-hmac.b64
+    portal-oidc:
+      issuer: http://localhost:8180/realms/payment-gateway
+      jwk-set-uri: http://keycloak:8080/realms/payment-gateway/protocol/openid-connect/certs

@@ -1,0 +1,46 @@
+spring:
+  application:
+    name: payment-core-service
+  main:
+    web-application-type: none
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  flyway:
+    enabled: ${PAYMENT_SCHEMA_MIGRATION_ENABLED:true}
+    locations: classpath:db/migration
+    baseline-on-migrate: true
+    baseline-version: 0
+    validate-on-migrate: true
+    clean-disabled: true
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate:
+        jdbc:
+          time_zone: UTC
+
+dubbo:
+  application:
+    name: payment-core-service
+    protocol: tri
+  protocol:
+    name: tri
+    port: 50051
+  registry:
+    address: nacos://${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    register-mode: all
+    use-as-config-center: false
+    use-as-metadata-center: false
+    parameters:
+      namespace: ${NACOS_NAMESPACE:public}
+  consumer:
+    check: false
+    protocol: tri
+  provider:
+    retries: 0

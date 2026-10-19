@@ -1,0 +1,1 @@
+{"compilerOptions":{"target":"ES2022","module":"preserve","strict":true,"skipLibCheck":true,"moduleResolution":"bundler","experimentalDecorators":true,"useDefineForClassFields":false,"lib":["ES2022","DOM"]},"angularCompilerOptions":{"strictTemplates":true}}

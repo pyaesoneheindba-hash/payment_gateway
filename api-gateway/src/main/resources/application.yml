@@ -1,0 +1,127 @@
+server:
+  port: ${GATEWAY_PORT:8086}
+
+spring:
+  application:
+    name: api-gateway
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${PORTAL_OIDC_ISSUER:http://127.0.0.1:8180/realms/payment-gateway}
+          jwk-set-uri: ${PORTAL_OIDC_JWK_SET_URI:http://127.0.0.1:8180/realms/payment-gateway/protocol/openid-connect/certs}
+  codec:
+    max-in-memory-size: ${GATEWAY_MAX_IN_MEMORY_SIZE:2MB}
+  r2dbc:
+    url: ${PAYMENT_R2DBC_URL:r2dbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  data:
+    redis:
+      host: ${REDIS_HOST:127.0.0.1}
+      port: ${REDIS_PORT:6379}
+      password: ${REDIS_PASSWORD:}
+      timeout: ${REDIS_TIMEOUT:2s}
+  cloud:
+    nacos:
+      username: ${NACOS_USERNAME:nacos}
+      password: ${NACOS_PASSWORD:nacos}
+      discovery:
+        server-addr: ${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+        username: ${NACOS_USERNAME:nacos}
+        password: ${NACOS_PASSWORD:nacos}
+        namespace: ${NACOS_HTTP_NAMESPACE:}
+        group: ${NACOS_HTTP_GROUP:DEFAULT_GROUP}
+        service: ${spring.application.name}
+        register-enabled: true
+        enabled: true
+        ip: ${NACOS_DISCOVERY_IP:}
+        cluster-name: ${NACOS_HTTP_CLUSTER:DEFAULT}
+        metadata:
+          protocol: http
+          management-path: /actuator
+    loadbalancer:
+      nacos:
+        enabled: true
+    gateway:
+      server:
+        webflux:
+          discovery:
+            locator:
+              enabled: false
+          routes:
+            # OIDC-authenticated portal SSE terminates directly in the reactive gateway.
+            # This avoids proxying a long-lived stream through payment-api-service.
+            - id: portal-live-sse
+              uri: forward:///internal/portal/live/events
+              predicates:
+                - Path=/api/v1/portal/live/events
+                - Method=GET
+            # This external route is authenticated by the existing merchant Ed25519
+            # GlobalFilter and then forwarded to an internal gateway controller.
+            - id: public-token-issuer
+              uri: forward:///internal/security/public-tokens
+              predicates:
+                - Path=/api/v1/security/public-tokens
+                - Method=POST
+            - id: payment-api
+              uri: lb://payment-api-service
+              predicates:
+                - Path=/api/v1/payments,/api/v1/payments/**,/api/v1/providers,/api/v1/providers/**,/api/v1/customer-qr,/api/v1/customer-qr/**,/api/v1/public/payments/**,/api/v1/webhooks/**,/api/v1/checkout/**,/api/v1/portal/**
+            - id: provider-callbacks
+              uri: lb://callback-service
+              predicates:
+                - Path=/callbacks,/callbacks/**
+
+payment:
+  portal-live:
+    redis-channel: txnhub.portal.payment-events
+    heartbeat-ms: 15000
+    redis-retry-min-ms: 1000
+    redis-retry-max-ms: 10000
+  security:
+    # Trusted merchant / partner backend authentication.
+    client-signature:
+      enabled: ${CLIENT_SIGNATURE_ENABLED:true}
+      allowed-clock-skew-seconds: ${CLIENT_SIGNATURE_CLOCK_SKEW_SECONDS:300}
+      replay-ttl-seconds: ${CLIENT_SIGNATURE_REPLAY_TTL_SECONDS:600}
+      max-body-bytes: ${CLIENT_SIGNATURE_MAX_BODY_BYTES:1048576}
+      replay-key-prefix: ${CLIENT_SIGNATURE_REPLAY_PREFIX:payment:replay:v1}
+      excluded-exact-paths:
+        - /api/v1/providers
+
+    # Public mobile/web/desktop authentication. Tokens are minted only after a
+    # trusted merchant request passes Ed25519 verification at /api/v1/security/public-tokens.
+    public-token:
+      enabled: ${PUBLIC_TOKEN_ENABLED:true}
+      issuer: ${PUBLIC_TOKEN_ISSUER:payment-api-gateway}
+      audience: ${PUBLIC_TOKEN_AUDIENCE:payment-public-api}
+      # REQUIRED to mint/accept public JWTs. Generate with:
+      # java scripts/security/GeneratePublicTokenSecret.java
+      hmac-secret-base64: ${PUBLIC_TOKEN_HMAC_SECRET_BASE64:}
+      hmac-secret-file: ${PUBLIC_TOKEN_HMAC_SECRET_FILE:}
+      default-ttl-seconds: ${PUBLIC_TOKEN_DEFAULT_TTL_SECONDS:300}
+      max-ttl-seconds: ${PUBLIC_TOKEN_MAX_TTL_SECONDS:1800}
+      allowed-clock-skew-seconds: ${PUBLIC_TOKEN_CLOCK_SKEW_SECONDS:30}
+      replay-key-prefix: ${PUBLIC_TOKEN_REPLAY_PREFIX:payment:public-token:jti:v1}
+      allowed-scopes:
+        - payment:create
+        - payment:read
+        - payment:status
+        - customer-qr:inspect
+        - customer-qr:pay
+
+    portal-oidc:
+      issuer: ${PORTAL_OIDC_ISSUER:http://127.0.0.1:8180/realms/payment-gateway}
+      jwk-set-uri: ${PORTAL_OIDC_JWK_SET_URI:http://127.0.0.1:8180/realms/payment-gateway/protocol/openid-connect/certs}
+      audience: ${PORTAL_OIDC_AUDIENCE:payment-portal-api}
+
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info,nacosdiscovery
+  endpoint:
+    health:
+      probes:
+        enabled: true

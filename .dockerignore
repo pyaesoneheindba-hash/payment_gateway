@@ -1,0 +1,13 @@
+.git
+.idea
+.vscode
+.settings
+.project
+**/target
+**/node_modules
+keys
+.runtime-secrets
+.env
+*.rar
+*.zip
+!frontend/angular-workspace/sdk-downloads/*.zip

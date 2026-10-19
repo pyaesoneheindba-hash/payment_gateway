@@ -1,0 +1,14 @@
+spring:
+  config:
+    activate:
+      on-profile: docker
+  datasource:
+    url: jdbc:postgresql://postgres:5432/payment_gateway
+    username: payment
+    password: payment
+
+dubbo:
+  registry:
+    address: nacos://nacos:8848
+    username: nacos
+    password: nacos

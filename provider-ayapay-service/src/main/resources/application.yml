@@ -1,0 +1,54 @@
+spring:
+  application:
+    name: provider-ayapay-service
+  datasource:
+    url: ${PAYMENT_DB_URL:jdbc:postgresql://127.0.0.1:5432/payment_gateway}
+    username: ${PAYMENT_DB_USER:payment}
+    password: ${PAYMENT_DB_PASSWORD:payment}
+  jpa:
+    hibernate:
+      ddl-auto: validate
+    open-in-view: false
+    properties:
+      hibernate.jdbc.time_zone: UTC
+  http:
+    serviceclient:
+      ayapay:
+        base-url: ${AYA_BASE_URL:https://opensandbox.ayainnovation.com}
+        connect-timeout: ${AYA_CONNECT_TIMEOUT:5s}
+        read-timeout: ${AYA_READ_TIMEOUT:10s}
+  main:
+    web-application-type: none
+
+provider:
+  ayapay:
+    base-url: ${AYA_BASE_URL:https://opensandbox.ayainnovation.com}
+    consumer-key: ${AYA_CONSUMER_KEY:}
+    consumer-secret: ${AYA_CONSUMER_SECRET:}
+    merchant-phone: ${AYA_MERCHANT_PHONE:}
+    merchant-password: ${AYA_MERCHANT_PASSWORD:}
+    decryption-key: ${AYA_DECRYPTION_KEY:}
+    qr-service-code: ${AYA_QR_SERVICE_CODE:}
+    push-service-code: ${AYA_PUSH_SERVICE_CODE:}
+    qr-time-limit: ${AYA_QR_TIME_LIMIT:5}
+    push-time-limit: ${AYA_PUSH_TIME_LIMIT:15}
+    mmqr: ${AYA_MMQR:false}
+
+dubbo:
+  application:
+    name: provider-ayapay-service
+    protocol: tri
+  protocol:
+    name: tri
+    port: 50054
+  registry:
+    address: nacos://${NACOS_HOST:127.0.0.1}:${NACOS_PORT:8848}
+    username: ${NACOS_USERNAME:nacos}
+    password: ${NACOS_PASSWORD:nacos}
+    register-mode: all
+    use-as-config-center: false
+    use-as-metadata-center: false
+    parameters:
+      namespace: ${NACOS_NAMESPACE:public}
+  provider:
+    retries: 0
