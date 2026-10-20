@@ -13,6 +13,7 @@ import org.apache.dubbo.common.config.ReferenceCache;
 import org.apache.dubbo.config.ReferenceConfig;
 import org.apache.dubbo.config.ReferenceConfigBase;
 import org.apache.dubbo.config.utils.SimpleReferenceCache;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import com.paymentgateway.common.ProviderCapability;
@@ -52,6 +53,7 @@ public class ProviderClientRegistry {
      * @param providerRepository provider repository
      * @param objectMapper JSON mapper
      */
+    @Autowired
     public ProviderClientRegistry(PaymentProviderRepository providerRepository, ObjectMapper objectMapper) {
         this(providerRepository, objectMapper,
                 SimpleReferenceCache.getCache("payment-core-provider-references",
