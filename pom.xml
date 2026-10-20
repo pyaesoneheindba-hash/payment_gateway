@@ -29,6 +29,7 @@
     <module>provider-ayapay-service</module>
     <module>callback-service</module>
     <module>notification-service</module>
+    <module>stage7-integration-tests</module>
   </modules>
 
   <properties>
