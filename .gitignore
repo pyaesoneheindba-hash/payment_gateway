@@ -21,3 +21,5 @@ examples/abank-webhook-test-*.json
 frontend/angular-workspace/node_modules/
 frontend/angular-workspace/dist/
 frontend/angular-workspace/.angular/
+rocketmq-it-result.log
+rocketmq-it-result.log

@@ -26,7 +26,8 @@ for java in root.rglob('*.java'):
     if 'new ContentCachingRequestWrapper(request)' in text: errors.append(f'{java}: obsolete Spring 7 request-wrapper constructor')
     if 'verified.paymentTxnStatus()' in text: errors.append(f'{java}: obsolete EnquirePaymentResult accessor')
     if '\n@Entity\n' in text and 'extends BaseAuditableEntity' not in text: errors.append(f'{java}: JPA entity does not inherit BaseAuditableEntity')
-sql=list(root.rglob('*.sql'))
+# Maven's target/classes contains copies of migration resources, not source SQL.
+sql=[p for p in root.rglob('*.sql') if 'target' not in p.relative_to(root).parts]
 expected_sql={root/'sql/payment_gateway_schema.sql', root/'payment-core-service/src/main/resources/db/migration/V1__baseline_schema.sql', root/'payment-core-service/src/main/resources/db/migration/V1_1__legacy_schema_completion.sql', root/'payment-core-service/src/main/resources/db/migration/V2__production_hardening.sql', root/'payment-core-service/src/main/resources/db/migration/V3__hosted_checkout_schema_compatibility.sql', root/'payment-core-service/src/main/resources/db/migration/V4__runtime_consolidation.sql', root/'deploy/dev/seed-portal-user.sql'}
 if set(sql)!=expected_sql: errors.append(f'unexpected SQL file set: {sql}')
 required=[root/'sql/payment_gateway_schema.sql',root/'provider-abank-service',root/'provider-mpu-service',root/'provider-ayapay-service',root/'PROJECT_STATE.md',root/'VERSION',root/'scripts/security/GenerateMerchantEd25519KeyPair.java',root/'scripts/security/SignHttpRequest.java',root/'scripts/security/GeneratePublicTokenSecret.java',root/'scripts/security/GenerateGatewayWebhookKeyPair.java',root/'scripts/security/VerifyWebhookSignature.java',root/'scripts/quality/JavaDocCoverageCheck.java']
@@ -163,7 +164,10 @@ if 'baseline-version: 0' not in core_yml: errors.append('payment-core Flyway bas
 if 'rocketmq-client-java' not in (root/'notification-service/pom.xml').read_text(): errors.append('notification-service missing RocketMQ client')
 
 for private_key in root.rglob('*-private.pem'):
-    errors.append(f'private signing key must not be packaged: {private_key}')
+    # Local development secrets are ignored by Git and are not source artifacts.
+    # Still reject private keys anywhere else in the source tree or build output.
+    if '.runtime-secrets' not in private_key.relative_to(root).parts:
+        errors.append(f'private signing key must not be packaged: {private_key}')
 
 # Runtime-consolidation / Docker / onboarding checks.
 for required_path in [
@@ -441,18 +445,20 @@ for java_file in _java_sources:
         errors.append(f'{java_file.relative_to(root)} uses deprecated Spring 7 HttpStatus.UNPROCESSABLE_ENTITY; use UNPROCESSABLE_CONTENT')
 if _api_handler.exists():
     handler_text = _api_handler.read_text()
+    handler_normalized = ' '.join(re.sub(r'(?m)^[ \t]*\*[ \t]?', ' ', handler_text).split())
     for token in ['HttpStatus.UNPROCESSABLE_CONTENT',
                   'Maps a shared payment-domain exception to the stable external API error contract.',
                   'Final exception boundary for failures not matched by a more specific handler.',
                   'Builds the common API error envelope and logs the failure at the appropriate severity.']:
-        if token not in handler_text:
+        if token not in handler_normalized:
             errors.append(f'ApiExceptionHandler method JavaDoc/status modernization missing {token}')
 if _callback_handler.exists():
     callback_text = _callback_handler.read_text()
+    callback_normalized = ' '.join(re.sub(r'(?m)^[ \t]*\*[ \t]?', ' ', callback_text).split())
     for token in ['Maps shared payment-domain failures raised while processing provider callbacks.',
                   'Final callback exception boundary that translates known upstream failures and hides internals.',
                   'Builds the callback error envelope and logs the original exception server-side.']:
-        if token not in callback_text:
+        if token not in callback_normalized:
             errors.append(f'CallbackExceptionHandler method JavaDoc missing {token}')
 if _sdk_exception.exists():
     sdk_text = _sdk_exception.read_text()
