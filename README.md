@@ -2,9 +2,9 @@
 
 **Canonical project documentation**  
 **Application version:** `1.0.0-SNAPSHOT`  
-**Package revision:** `v20`  
-**State date:** `2026-10-19`  
-**Documentation policy:** This is the **only Markdown documentation file** kept in the source tree. Future changes must update this file instead of creating additional `.md` files.
+**Package revision:** `v21`\
+**State date:** `2026-10-21`\
+**Documentation policy:** `PROJECT_STATE.md` is the source-verifier-required canonical document; `README.md` is maintained as a synchronized copy. Update both together and do not add new fix-specific Markdown files.
 
 ---
 
@@ -15,7 +15,7 @@ The project has two version identifiers:
 | Identifier | Current value | Purpose |
 |---|---:|---|
 | Maven/application version | `1.0.0-SNAPSHOT` | Java artifact/application version inherited from the root Maven POM |
-| Package revision | `v20` | Iteration number for the generated project ZIP and consolidated project state |
+| Package revision | `v21` | Iteration number for the generated project ZIP and consolidated project state |
 
 The plain-text `VERSION` file at the project root is the machine-readable version reference.
 
@@ -819,6 +819,14 @@ python scripts/verify-source.py
 
 The verifier is maintained with this consolidated documentation structure and treats `PROJECT_STATE.md` as the canonical project document.
 
+### Stage 7.3B3 isolated three-JVM integration test (test-only)
+
+Run `stage7-3b3/run-stage7-3b3.ps1` from the repository root in Windows PowerShell. The runner builds normal test-dependency JARs and launches a separate WebFlux API Gateway JVM, Spring MVC Payment API JVM, and Spring Boot Payment Core JVM with real Dubbo Triple RPC. The Core uses a disposable Testcontainers PostgreSQL database and a synthetic bank provider; the Gateway uses test-only request-signature dependencies. It does not require calls to bank sandboxes, Nacos, real merchant webhooks, or the existing application databases. The runner performs local Maven `clean install` operations that refresh local build artifacts, and requires an available local Docker daemon for its disposable PostgreSQL container.
+
+The `Stage7MultiJvmPaymentFlowTest` checks: (1) signed payment creation and a synthetic QR; (2) duplicate idempotent requests with distinct nonces do not repeat provider initiation; and (3) an invalid signature is rejected before payment creation. On 2026-10-21 these **3 tests passed (0 failures, 0 errors)** on the developer workstation after test-only JavaDoc updates. Child JVMs did not disable Dubbo Triple REST mapping. This result does not establish production-app bootstrap, real bank integration, Nacos discovery, RocketMQ, webhook delivery, or production readiness.
+
+The older `Stage7DubboTripleTransportTest` and its module-level `dubbo.protocol.triple.rest.enabled=false` Surefire setting remain separate legacy compatibility work. The standalone transport test does not prove REST-enabled compatibility. Other legacy tests and local draft backups may still fail the project-wide JavaDoc checker. The Python source verifier passed on 2026-10-22 using the cached python:3.12-slim Docker image with networking disabled and the repository mounted read-only.
+
 ### Production cautions
 
 The Docker Compose topology is for local/integration development, not HA production. Production should use approved deployment controls including:
@@ -928,12 +936,13 @@ This table replaces the previous collection of one-off fix Markdown files.
 | **v18** | **2026-10-19** | **Implemented centralized exception handling and a stable external error envelope with correlation IDs, validation details, explicit payment/idempotency/provider/identity/upstream error codes, sanitized 5xx responses, shared Dubbo-crossing domain exceptions, callback-service error sanitization, and Java SDK structured error parsing.** |
 | **v19** | **2026-10-19** | **Updated Spring Framework 7 HTTP 422 mappings from deprecated `HttpStatus.UNPROCESSABLE_ENTITY` to `HttpStatus.UNPROCESSABLE_CONTENT`. Added method-level JavaDoc to the centralized exception handlers and related shared exception/SDK/state-transition methods, and strengthened source verification against reintroducing the deprecated status constant.** |
 | **v20** | **2026-10-19** | **Expanded JavaDoc from exception-focused coverage to the entire Java codebase. Added documentation for all named Java types and all explicit constructors/methods across production services, provider adapters, SDKs, tests and standalone Java utilities. Added the AST-based `JavaDocCoverageCheck` utility to prevent undocumented Java declarations from being reintroduced.** |
+| **v21** | **2026-10-21** | **Added isolated separate-process Stage 7.3B3 integration coverage for signed payments, idempotency and bad-signature rejection across WebFlux Gateway, MVC Payment API and Dubbo Triple Core. All three tests passed with a mock provider and disposable PostgreSQL; production code and infrastructure were unchanged. Added JavaDoc to new test fixtures, corrected javax.sql handling in the source verifier (offline verification passed on 2026-10-22), synchronized README/PROJECT_STATE and preserved the legacy Stage 7.3B2 compatibility caveat.** |
 
 ### Next revision
 
 For the next generated project state:
 
-1. increment `package_revision` in `VERSION` from `20` to `21`;
+1. increment `package_revision` in `VERSION` from `21` to `22`;
 2. update the header/package revision to the next number;
 3. add one new row to this revision history;
 4. update existing sections to describe the new current behavior;

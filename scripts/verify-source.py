@@ -22,7 +22,13 @@ for pom in root.rglob('pom.xml'):
             errors.append(f'{pom}: internal dependency {group}:{artifact} is missing an explicit version')
 for java in root.rglob('*.java'):
     text=java.read_text(encoding='utf-8')
-    if 'import javax.' in text and 'javax.crypto' not in text and 'javax.tools' not in text: errors.append(f'{java}: legacy javax import')
+    # These are Java SE packages, not pre-Jakarta Java EE imports.
+    # Check each import separately so an allowed javax.sql import cannot mask
+    # a genuine legacy javax.servlet or javax.persistence import in the same file.
+    javax_imports = re.findall(r'(?m)^\s*import\s+(?:static\s+)?(javax\.[\w.]+)', text)
+    if any(not imported.startswith(('javax.crypto.', 'javax.tools.', 'javax.sql.'))
+           for imported in javax_imports):
+        errors.append(f'{java}: legacy javax import')
     if 'new ContentCachingRequestWrapper(request)' in text: errors.append(f'{java}: obsolete Spring 7 request-wrapper constructor')
     if 'verified.paymentTxnStatus()' in text: errors.append(f'{java}: obsolete EnquirePaymentResult accessor')
     if '\n@Entity\n' in text and 'extends BaseAuditableEntity' not in text: errors.append(f'{java}: JPA entity does not inherit BaseAuditableEntity')
