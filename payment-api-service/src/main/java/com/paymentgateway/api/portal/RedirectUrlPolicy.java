@@ -2,6 +2,7 @@ package com.paymentgateway.api.portal;
 
 import java.net.URI;
 import java.util.Locale;
+
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -14,7 +15,7 @@ public class RedirectUrlPolicy {
     /**
      * Creates a new {@code RedirectUrlPolicy} instance.
      *
-     * @param allowHttp whether allow HTTP is enabled
+     * @param allowHttp      whether allow HTTP is enabled
      * @param allowLocalhost whether allow localhost is enabled
      */
     public RedirectUrlPolicy(
@@ -31,7 +32,8 @@ public class RedirectUrlPolicy {
      * @return the resulting validate and normalize text
      */
     public String validateAndNormalize(String rawUrl) {
-        if (rawUrl == null || rawUrl.isBlank()) throw new IllegalArgumentException("redirectUrl is required");
+        if (rawUrl == null || rawUrl.isBlank())
+            throw new IllegalArgumentException("redirectUrl is required");
         try {
             URI uri = URI.create(rawUrl.trim()).normalize();
             String scheme = uri.getScheme() == null ? "" : uri.getScheme().toLowerCase(Locale.ROOT);
@@ -39,9 +41,12 @@ public class RedirectUrlPolicy {
                 throw new IllegalArgumentException("Redirect URL must use HTTPS");
             }
             String host = uri.getHost();
-            if (host == null || host.isBlank()) throw new IllegalArgumentException("Redirect URL must contain a host");
-            if (uri.getUserInfo() != null) throw new IllegalArgumentException("Redirect URL must not contain userinfo");
-            if (uri.getFragment() != null) throw new IllegalArgumentException("Redirect URL must not contain a fragment");
+            if (host == null || host.isBlank())
+                throw new IllegalArgumentException("Redirect URL must contain a host");
+            if (uri.getUserInfo() != null)
+                throw new IllegalArgumentException("Redirect URL must not contain userinfo");
+            if (uri.getFragment() != null)
+                throw new IllegalArgumentException("Redirect URL must not contain a fragment");
             if (!allowLocalhost && isLocalhost(host)) {
                 throw new IllegalArgumentException("Redirect URL must not target localhost");
             }

@@ -22,6 +22,7 @@ import org.springframework.boot.autoconfigure.EnableAutoConfiguration;
 import org.springframework.boot.builder.SpringApplicationBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Import;
+import org.springframework.context.annotation.Profile;
 import org.springframework.data.jpa.repository.config.EnableJpaAuditing;
 import org.springframework.data.jpa.repository.config.EnableJpaRepositories;
 import org.springframework.jdbc.core.JdbcTemplate;
@@ -110,6 +111,7 @@ public final class Stage7CoreChild {
                 }
             });
             try (var context = new SpringApplicationBuilder(CoreBoot.class)
+                    .profiles("stage7-3b3")
                     .web(WebApplicationType.NONE)
                     .properties(
                         "spring.config.name=stage7b3-no-production-config",
@@ -146,6 +148,7 @@ public final class Stage7CoreChild {
 
     /** Configures real Core persistence and RPC with disposable test dependencies. */
     @SpringBootConfiguration
+    @Profile("stage7-3b3")
     @EnableAutoConfiguration
     @EnableDubbo(scanBasePackages = "com.paymentgateway.core.service")
     @EnableTransactionManagement

@@ -9,24 +9,24 @@ import java.util.HexFormat;
  * Implements hashing behavior for the payment gateway platform.
  */
 public final class Hashing {
-	/**
-	 * Creates a new {@code Hashing} instance.
-	 */
-	private Hashing() {
-	}
+    /**
+     * Creates a new {@code Hashing} instance.
+     */
+    private Hashing() {
+    }
 
-	/**
-	 * Executes the sha256 operation.
-	 *
-	 * @param value the value to process
-	 * @return the resulting sha256 text
-	 */
-	public static String sha256(String value) {
-		try {
-			return HexFormat.of()
-					.formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
-		} catch (NoSuchAlgorithmException e) {
-			throw new IllegalStateException("SHA-256 unavailable", e);
-		}
-	}
+    /**
+     * Executes the sha256 operation.
+     *
+     * @param value the value to process
+     * @return the resulting sha256 text
+     */
+    public static String sha256(String value) {
+        try {
+            return HexFormat.of()
+                    .formatHex(MessageDigest.getInstance("SHA-256").digest(value.getBytes(StandardCharsets.UTF_8)));
+        } catch (NoSuchAlgorithmException e) {
+            throw new IllegalStateException("SHA-256 unavailable", e);
+        }
+    }
 }

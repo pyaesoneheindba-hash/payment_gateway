@@ -5,8 +5,8 @@ import java.util.Map;
 import java.util.UUID;
 
 /**
- * Sanitized live portal event broadcast after a committed payment lifecycle event.
- * Merchant portals are filtered server-side by merchantId; admin portals may receive all merchants.
+ * Sanitized live portal event broadcast after a committed payment lifecycle event. Merchant portals are filtered
+ * server-side by merchantId; admin portals may receive all merchants.
  */
 public record PortalLiveEvent(
         UUID eventId,

@@ -1,11 +1,11 @@
 package com.paymentgateway.api.portal.live;
 
-import com.paymentgateway.common.live.PortalLiveEvent;
 import java.io.IOException;
 import java.time.Instant;
 import java.util.Map;
 import java.util.UUID;
 import java.util.concurrent.ConcurrentHashMap;
+
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
@@ -13,9 +13,11 @@ import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 
+import com.paymentgateway.common.live.PortalLiveEvent;
+
 /**
- * In-memory registry of authenticated browser SSE connections for this payment-api instance.
- * Redis Pub/Sub fans events to every instance; this hub performs final server-side tenant filtering.
+ * In-memory registry of authenticated browser SSE connections for this payment-api instance. Redis Pub/Sub fans events
+ * to every instance; this hub performs final server-side tenant filtering.
  */
 @Component
 public class PortalLiveEventHub {
@@ -36,7 +38,7 @@ public class PortalLiveEventHub {
     /**
      * Executes the subscribe operation.
      *
-     * @param role the authenticated portal role
+     * @param role       the authenticated portal role
      * @param merchantId the merchant identifier
      * @return the resulting {@code SseEmitter} value
      */
@@ -54,8 +56,7 @@ public class PortalLiveEventHub {
                     .name("connected")
                     .data(Map.of("connectedAt", Instant.now().toString()))
                     .reconnectTime(2000));
-        }
-        catch (IOException e) {
+        } catch (IOException e) {
             clients.remove(connectionId);
             emitter.completeWithError(e);
         }
@@ -68,19 +69,23 @@ public class PortalLiveEventHub {
      * @param event the event to process
      */
     public void publish(PortalLiveEvent event) {
-        if (event == null || event.merchantId() == null) return;
+        if (event == null || event.merchantId() == null)
+            return;
         clients.values().forEach(client -> {
-            if (!isVisible(client, event)) return;
+            if (!isVisible(client, event))
+                return;
             try {
                 client.emitter().send(SseEmitter.event()
                         .id(event.eventId() == null ? UUID.randomUUID().toString() : event.eventId().toString())
                         .name("payment-status")
                         .data(event)
                         .reconnectTime(2000));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 clients.remove(client.connectionId());
-                try { client.emitter().complete(); } catch (Exception ignored) { }
+                try {
+                    client.emitter().complete();
+                } catch (Exception ignored) {
+                }
             }
         });
     }
@@ -93,10 +98,12 @@ public class PortalLiveEventHub {
         clients.values().forEach(client -> {
             try {
                 client.emitter().send(SseEmitter.event().comment("heartbeat " + Instant.now()));
-            }
-            catch (Exception e) {
+            } catch (Exception e) {
                 clients.remove(client.connectionId());
-                try { client.emitter().complete(); } catch (Exception ignored) { }
+                try {
+                    client.emitter().complete();
+                } catch (Exception ignored) {
+                }
             }
         });
     }
@@ -105,7 +112,7 @@ public class PortalLiveEventHub {
      * Determines whether visible.
      *
      * @param client the client value
-     * @param event the event to process
+     * @param event  the event to process
      * @return {@code true} when the condition is satisfied; otherwise {@code false}
      */
     private boolean isVisible(Client client, PortalLiveEvent event) {
@@ -123,10 +130,13 @@ public class PortalLiveEventHub {
      *
      * @return the resulting connection count value
      */
-    public int connectionCount() { return clients.size(); }
+    public int connectionCount() {
+        return clients.size();
+    }
 
     /**
      * Provides client-side access to .
      */
-    private record Client(UUID connectionId, String role, UUID merchantId, SseEmitter emitter) { }
+    private record Client(UUID connectionId, String role, UUID merchantId, SseEmitter emitter) {
+    }
 }

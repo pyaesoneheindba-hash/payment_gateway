@@ -1,6 +1,7 @@
 package com.paymentgateway.api.portal;
 
 import java.util.Set;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Component;
 import org.springframework.web.server.ResponseStatusException;
@@ -18,48 +19,68 @@ public class PortalAuthorization {
      *
      * @param role the authenticated portal role
      */
-    public void requireAdminRead(String role) { require(role, ADMIN_READ); }
+    public void requireAdminRead(String role) {
+        require(role, ADMIN_READ);
+    }
+
     /**
      * Retrieves and validates merchant read.
      *
      * @param role the authenticated portal role
      */
-    public void requireMerchantRead(String role) { require(role, MERCHANT_READ); }
+    public void requireMerchantRead(String role) {
+        require(role, MERCHANT_READ);
+    }
+
     /**
      * Retrieves and validates super admin.
      *
      * @param role the authenticated portal role
      */
-    public void requireSuperAdmin(String role) { require(role, Set.of("SUPER_ADMIN")); }
+    public void requireSuperAdmin(String role) {
+        require(role, Set.of("SUPER_ADMIN"));
+    }
+
     /**
      * Retrieves and validates admin reconciliation.
      *
      * @param role the authenticated portal role
      */
-    public void requireAdminReconciliation(String role) { require(role, Set.of("SUPER_ADMIN", "OPERATIONS")); }
+    public void requireAdminReconciliation(String role) {
+        require(role, Set.of("SUPER_ADMIN", "OPERATIONS"));
+    }
+
     /**
      * Retrieves and validates merchant reconciliation.
      *
      * @param role the authenticated portal role
      */
-    public void requireMerchantReconciliation(String role) { require(role, Set.of("MERCHANT_ADMIN", "MERCHANT_FINANCE")); }
+    public void requireMerchantReconciliation(String role) {
+        require(role, Set.of("MERCHANT_ADMIN", "MERCHANT_FINANCE"));
+    }
+
     /**
      * Retrieves and validates merchant key admin.
      *
      * @param role the authenticated portal role
      */
-    public void requireMerchantKeyAdmin(String role) { require(role, Set.of("MERCHANT_ADMIN")); }
+    public void requireMerchantKeyAdmin(String role) {
+        require(role, Set.of("MERCHANT_ADMIN"));
+    }
+
     /**
      * Retrieves and validates merchant webhook admin.
      *
      * @param role the authenticated portal role
      */
-    public void requireMerchantWebhookAdmin(String role) { require(role, Set.of("MERCHANT_ADMIN", "MERCHANT_DEVELOPER")); }
+    public void requireMerchantWebhookAdmin(String role) {
+        require(role, Set.of("MERCHANT_ADMIN", "MERCHANT_DEVELOPER"));
+    }
 
     /**
      * Executes the require operation.
      *
-     * @param role the authenticated portal role
+     * @param role    the authenticated portal role
      * @param allowed the allowed value
      */
     public void require(String role, Set<String> allowed) {

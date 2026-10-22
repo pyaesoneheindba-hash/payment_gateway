@@ -1,6 +1,5 @@
 package com.paymentgateway.api.portal;
 
-import com.paymentgateway.api.webhook.WebhookUrlPolicy;
 import java.security.KeyFactory;
 import java.security.spec.X509EncodedKeySpec;
 import java.util.Base64;
@@ -10,17 +9,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.UUID;
 import java.util.regex.Pattern;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.paymentgateway.api.webhook.WebhookUrlPolicy;
+
 /**
  * Admin-controlled merchant onboarding workflow.
  *
- * Merchants are created PENDING and cannot use signed payment APIs until an
- * administrator activates them. Only merchant public keys are accepted; private
- * keys must remain with the merchant.
+ * Merchants are created PENDING and cannot use signed payment APIs until an administrator activates them. Only merchant
+ * public keys are accepted; private keys must remain with the merchant.
  */
 @Service
 public class MerchantOnboardingService {
@@ -37,9 +38,9 @@ public class MerchantOnboardingService {
     /**
      * Creates a new {@code MerchantOnboardingService} instance.
      *
-     * @param jdbc the jdbc value
-     * @param redirectUrlPolicy the redirect URL policy value
-     * @param webhookUrlPolicy the webhook URL policy value
+     * @param jdbc                the jdbc value
+     * @param redirectUrlPolicy   the redirect URL policy value
+     * @param webhookUrlPolicy    the webhook URL policy value
      * @param identityProvisioner the identity provisioner value
      */
     public MerchantOnboardingService(JdbcTemplate jdbc, RedirectUrlPolicy redirectUrlPolicy,
@@ -67,7 +68,8 @@ public class MerchantOnboardingService {
             String portalUsername,
             String portalDisplayName,
             String portalTemporaryPassword,
-            Boolean portalRequirePasswordChange) {}
+            Boolean portalRequirePasswordChange) {
+    }
 
     /**
      * Represents the result of onboarding processing.
@@ -79,7 +81,8 @@ public class MerchantOnboardingService {
             boolean redirectConfigured,
             boolean keyConfigured,
             boolean webhookConfigured,
-            boolean portalAdminConfigured) {}
+            boolean portalAdminConfigured) {
+    }
 
     /**
      * Executes the onboard operation.
@@ -89,7 +92,8 @@ public class MerchantOnboardingService {
      */
     @Transactional
     public OnboardingResult onboard(OnboardingRequest request) {
-        if (request == null) throw new IllegalArgumentException("Onboarding request is required");
+        if (request == null)
+            throw new IllegalArgumentException("Onboarding request is required");
         String code = trim(request.merchantCode());
         String name = trim(request.merchantName());
         if (code == null || !MERCHANT_CODE.matcher(code).matches()) {
@@ -98,7 +102,8 @@ public class MerchantOnboardingService {
         if (name == null || name.length() > 200) {
             throw new IllegalArgumentException("merchantName is required and must be <= 200 characters");
         }
-        String environment = request.environment() == null ? "UAT" : request.environment().trim().toUpperCase(Locale.ROOT);
+        String environment = request.environment() == null ? "UAT"
+                : request.environment().trim().toUpperCase(Locale.ROOT);
         if (!Set.of("UAT", "PRODUCTION").contains(environment)) {
             throw new IllegalArgumentException("environment must be UAT or PRODUCTION");
         }
@@ -108,7 +113,8 @@ public class MerchantOnboardingService {
         }
 
         String redirect = trim(request.redirectUrl());
-        if (redirect != null) redirect = redirectUrlPolicy.validateAndNormalize(redirect);
+        if (redirect != null)
+            redirect = redirectUrlPolicy.validateAndNormalize(redirect);
 
         String keyId = trim(request.keyId());
         String publicKey = trim(request.publicKey());
@@ -121,7 +127,8 @@ public class MerchantOnboardingService {
         }
 
         String webhook = trim(request.webhookUrl());
-        if (webhook != null) webhook = webhookUrlPolicy.validateAndNormalize(webhook);
+        if (webhook != null)
+            webhook = webhookUrlPolicy.validateAndNormalize(webhook);
 
         String portalEmail = trim(request.portalEmail());
         String portalUsername = trim(request.portalUsername());
@@ -129,17 +136,23 @@ public class MerchantOnboardingService {
         String portalTemporaryPassword = request.portalTemporaryPassword();
         boolean portalConfigured = portalEmail != null || portalUsername != null || portalDisplayName != null
                 || (portalTemporaryPassword != null && !portalTemporaryPassword.isEmpty());
-        boolean requirePasswordChange = request.portalRequirePasswordChange() == null || request.portalRequirePasswordChange();
+        boolean requirePasswordChange = request.portalRequirePasswordChange() == null
+                || request.portalRequirePasswordChange();
         if (portalConfigured) {
             if (portalEmail == null || portalEmail.length() > 255 || !EMAIL.matcher(portalEmail).matches()) {
-                throw new IllegalArgumentException("A valid portalEmail is required for the merchant portal administrator");
+                throw new IllegalArgumentException(
+                        "A valid portalEmail is required for the merchant portal administrator");
             }
             if (portalUsername == null || !PORTAL_USERNAME.matcher(portalUsername).matches()) {
-                throw new IllegalArgumentException("A valid portalUsername is required for the merchant portal administrator");
+                throw new IllegalArgumentException(
+                        "A valid portalUsername is required for the merchant portal administrator");
             }
-            if (portalDisplayName == null) portalDisplayName = name + " Administrator";
-            if (portalDisplayName.length() > 200) throw new IllegalArgumentException("portalDisplayName is too long");
-            if (portalTemporaryPassword == null || portalTemporaryPassword.isBlank() || portalTemporaryPassword.length() < 12 || portalTemporaryPassword.length() > 200) {
+            if (portalDisplayName == null)
+                portalDisplayName = name + " Administrator";
+            if (portalDisplayName.length() > 200)
+                throw new IllegalArgumentException("portalDisplayName is too long");
+            if (portalTemporaryPassword == null || portalTemporaryPassword.isBlank()
+                    || portalTemporaryPassword.length() < 12 || portalTemporaryPassword.length() > 200) {
                 throw new IllegalArgumentException("portalTemporaryPassword must be between 12 and 200 characters");
             }
         }
@@ -149,51 +162,57 @@ public class MerchantOnboardingService {
             try {
                 provisionedIdentity = identityProvisioner.createMerchantAdmin(
                         new KeycloakPortalIdentityProvisioner.CreatePortalAdmin(
-                                portalUsername, portalEmail, portalDisplayName, portalTemporaryPassword, requirePasswordChange));
-            }
-            catch (KeycloakPortalIdentityProvisioner.IdentityConflictException e) {
+                                portalUsername, portalEmail, portalDisplayName, portalTemporaryPassword,
+                                requirePasswordChange));
+            } catch (KeycloakPortalIdentityProvisioner.IdentityConflictException e) {
                 throw new MerchantOnboardingConflictException(e.getMessage(), e);
             }
         }
 
         UUID merchantId = UUID.randomUUID();
         try {
-            jdbc.update("""
-                INSERT INTO merchant(merchant_id,merchant_code,merchant_name,status,environment,default_currency,contact_email)
-                VALUES (?,?,?,'PENDING',?,'MMK',?)
-                """, merchantId, code, name, environment, email);
+            jdbc.update(
+                    """
+                            INSERT INTO merchant(merchant_id,merchant_code,merchant_name,status,environment,default_currency,contact_email)
+                            VALUES (?,?,?,'PENDING',?,'MMK',?)
+                            """,
+                    merchantId, code, name, environment, email);
 
             if (redirect != null) {
                 jdbc.update("""
-                    INSERT INTO merchant_redirect_uri(redirect_uri_id,merchant_id,redirect_uri,status)
-                    VALUES (?,?,?,'ACTIVE')
-                    """, UUID.randomUUID(), merchantId, redirect);
+                        INSERT INTO merchant_redirect_uri(redirect_uri_id,merchant_id,redirect_uri,status)
+                        VALUES (?,?,?,'ACTIVE')
+                        """, UUID.randomUUID(), merchantId, redirect);
             }
             if (keyConfigured) {
                 jdbc.update("""
-                    INSERT INTO merchant_api_key(key_id,merchant_id,algorithm,public_key,status,valid_from)
-                    VALUES (?,?,'ED25519',?,'ACTIVE',now())
-                    """, keyId, merchantId, publicKey);
+                        INSERT INTO merchant_api_key(key_id,merchant_id,algorithm,public_key,status,valid_from)
+                        VALUES (?,?,'ED25519',?,'ACTIVE',now())
+                        """, keyId, merchantId, publicKey);
             }
             if (webhook != null) {
                 jdbc.update("""
-                    INSERT INTO merchant_webhook_endpoint(endpoint_id,merchant_id,event_type,url,description,status)
-                    VALUES (?,?,'PAYMENT_STATUS_CHANGED',?,?, 'ACTIVE')
-                    """, UUID.randomUUID(), merchantId, webhook, trim(request.webhookDescription()));
+                        INSERT INTO merchant_webhook_endpoint(endpoint_id,merchant_id,event_type,url,description,status)
+                        VALUES (?,?,'PAYMENT_STATUS_CHANGED',?,?, 'ACTIVE')
+                        """, UUID.randomUUID(), merchantId, webhook, trim(request.webhookDescription()));
             }
             if (portalConfigured) {
-                jdbc.update("""
-                    INSERT INTO portal_user(portal_user_id,username,display_name,role,merchant_id,status,oidc_subject)
-                    VALUES (?,?,?,'MERCHANT_ADMIN',?,'ACTIVE',?)
-                    """, UUID.randomUUID(), portalUsername, portalDisplayName, merchantId, provisionedIdentity.oidcSubject());
+                jdbc.update(
+                        """
+                                INSERT INTO portal_user(portal_user_id,username,display_name,role,merchant_id,status,oidc_subject)
+                                VALUES (?,?,?,'MERCHANT_ADMIN',?,'ACTIVE',?)
+                                """,
+                        UUID.randomUUID(), portalUsername, portalDisplayName, merchantId,
+                        provisionedIdentity.oidcSubject());
             }
-        }
-        catch (DataIntegrityViolationException e) {
-            if (provisionedIdentity != null) identityProvisioner.deleteUserQuietly(provisionedIdentity.oidcSubject());
-            throw new MerchantOnboardingConflictException("Merchant code, key ID, webhook, redirect URI, or portal identity already exists", e);
-        }
-        catch (RuntimeException e) {
-            if (provisionedIdentity != null) identityProvisioner.deleteUserQuietly(provisionedIdentity.oidcSubject());
+        } catch (DataIntegrityViolationException e) {
+            if (provisionedIdentity != null)
+                identityProvisioner.deleteUserQuietly(provisionedIdentity.oidcSubject());
+            throw new MerchantOnboardingConflictException(
+                    "Merchant code, key ID, webhook, redirect URI, or portal identity already exists", e);
+        } catch (RuntimeException e) {
+            if (provisionedIdentity != null)
+                identityProvisioner.deleteUserQuietly(provisionedIdentity.oidcSubject());
             throw e;
         }
 
@@ -209,13 +228,20 @@ public class MerchantOnboardingService {
      */
     public Map<String, Object> readiness(UUID merchantId) {
         Map<String, Object> result = new LinkedHashMap<>(jdbc.queryForMap("""
-            SELECT merchant_id,merchant_code,merchant_name,status,environment,contact_email
-            FROM merchant WHERE merchant_id=?
-            """, merchantId));
-        Long keys = jdbc.queryForObject("SELECT count(*) FROM merchant_api_key WHERE merchant_id=? AND status='ACTIVE'", Long.class, merchantId);
-        Long redirects = jdbc.queryForObject("SELECT count(*) FROM merchant_redirect_uri WHERE merchant_id=? AND status='ACTIVE'", Long.class, merchantId);
-        Long webhooks = jdbc.queryForObject("SELECT count(*) FROM merchant_webhook_endpoint WHERE merchant_id=? AND status='ACTIVE'", Long.class, merchantId);
-        Long portalAdmins = jdbc.queryForObject("SELECT count(*) FROM portal_user WHERE merchant_id=? AND role='MERCHANT_ADMIN' AND status='ACTIVE'", Long.class, merchantId);
+                SELECT merchant_id,merchant_code,merchant_name,status,environment,contact_email
+                FROM merchant WHERE merchant_id=?
+                """, merchantId));
+        Long keys = jdbc.queryForObject("SELECT count(*) FROM merchant_api_key WHERE merchant_id=? AND status='ACTIVE'",
+                Long.class, merchantId);
+        Long redirects = jdbc.queryForObject(
+                "SELECT count(*) FROM merchant_redirect_uri WHERE merchant_id=? AND status='ACTIVE'", Long.class,
+                merchantId);
+        Long webhooks = jdbc.queryForObject(
+                "SELECT count(*) FROM merchant_webhook_endpoint WHERE merchant_id=? AND status='ACTIVE'", Long.class,
+                merchantId);
+        Long portalAdmins = jdbc.queryForObject(
+                "SELECT count(*) FROM portal_user WHERE merchant_id=? AND role='MERCHANT_ADMIN' AND status='ACTIVE'",
+                Long.class, merchantId);
         result.put("activeSigningKeys", keys == null ? 0 : keys);
         result.put("activeRedirectUris", redirects == null ? 0 : redirects);
         result.put("activeWebhooks", webhooks == null ? 0 : webhooks);
@@ -232,12 +258,18 @@ public class MerchantOnboardingService {
      */
     @Transactional
     public Map<String, Object> activate(UUID merchantId) {
-        String status = jdbc.queryForObject("SELECT status FROM merchant WHERE merchant_id=? FOR UPDATE", String.class, merchantId);
-        if (status == null) throw new IllegalArgumentException("Merchant not found");
-        if ("CLOSED".equals(status)) throw new IllegalStateException("Closed merchants cannot be reactivated");
-        Long keys = jdbc.queryForObject("SELECT count(*) FROM merchant_api_key WHERE merchant_id=? AND status='ACTIVE'", Long.class, merchantId);
-        if (keys == null || keys < 1) throw new IllegalStateException("At least one ACTIVE Ed25519 public key is required before activation");
-        jdbc.update("UPDATE merchant SET status='ACTIVE',version=version+1,updated_at=now() WHERE merchant_id=?", merchantId);
+        String status = jdbc.queryForObject("SELECT status FROM merchant WHERE merchant_id=? FOR UPDATE", String.class,
+                merchantId);
+        if (status == null)
+            throw new IllegalArgumentException("Merchant not found");
+        if ("CLOSED".equals(status))
+            throw new IllegalStateException("Closed merchants cannot be reactivated");
+        Long keys = jdbc.queryForObject("SELECT count(*) FROM merchant_api_key WHERE merchant_id=? AND status='ACTIVE'",
+                Long.class, merchantId);
+        if (keys == null || keys < 1)
+            throw new IllegalStateException("At least one ACTIVE Ed25519 public key is required before activation");
+        jdbc.update("UPDATE merchant SET status='ACTIVE',version=version+1,updated_at=now() WHERE merchant_id=?",
+                merchantId);
         return readiness(merchantId);
     }
 
@@ -250,10 +282,11 @@ public class MerchantOnboardingService {
     @Transactional
     public Map<String, Object> suspend(UUID merchantId) {
         int updated = jdbc.update("""
-            UPDATE merchant SET status='SUSPENDED',version=version+1,updated_at=now()
-            WHERE merchant_id=? AND status<>'CLOSED'
-            """, merchantId);
-        if (updated == 0) throw new IllegalArgumentException("Merchant not found or already closed");
+                UPDATE merchant SET status='SUSPENDED',version=version+1,updated_at=now()
+                WHERE merchant_id=? AND status<>'CLOSED'
+                """, merchantId);
+        if (updated == 0)
+            throw new IllegalArgumentException("Merchant not found or already closed");
         return readiness(merchantId);
     }
 
@@ -269,8 +302,7 @@ public class MerchantOnboardingService {
                     .replaceAll("\\s", "");
             byte[] der = Base64.getDecoder().decode(encoded);
             KeyFactory.getInstance("Ed25519").generatePublic(new X509EncodedKeySpec(der));
-        }
-        catch (Exception e) {
+        } catch (Exception e) {
             throw new IllegalArgumentException("publicKey must be a valid Ed25519 X.509 PEM public key", e);
         }
     }
@@ -282,7 +314,8 @@ public class MerchantOnboardingService {
      * @return the resulting trim text
      */
     private static String trim(String value) {
-        if (value == null) return null;
+        if (value == null)
+            return null;
         String trimmed = value.trim();
         return trimmed.isEmpty() ? null : trimmed;
     }
@@ -295,8 +328,10 @@ public class MerchantOnboardingService {
          * Creates a new {@code MerchantOnboardingConflictException} instance.
          *
          * @param message the message value
-         * @param cause the cause value
+         * @param cause   the cause value
          */
-        public MerchantOnboardingConflictException(String message, Throwable cause) { super(message, cause); }
+        public MerchantOnboardingConflictException(String message, Throwable cause) {
+            super(message, cause);
+        }
     }
 }

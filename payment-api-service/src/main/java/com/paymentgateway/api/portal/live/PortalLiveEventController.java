@@ -1,7 +1,7 @@
 package com.paymentgateway.api.portal.live;
 
-import com.paymentgateway.api.portal.PortalAuthorization;
 import java.util.UUID;
+
 import org.springframework.http.CacheControl;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
@@ -11,6 +11,8 @@ import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
+
+import com.paymentgateway.api.portal.PortalAuthorization;
 
 /**
  * Exposes HTTP endpoints for portal live event operations.
@@ -26,7 +28,7 @@ public class PortalLiveEventController {
      * Creates a new {@code PortalLiveEventController} instance.
      *
      * @param authorization the authorization value
-     * @param hub the hub value
+     * @param hub           the hub value
      */
     public PortalLiveEventController(PortalAuthorization authorization, PortalLiveEventHub hub) {
         this.authorization = authorization;
@@ -36,19 +38,18 @@ public class PortalLiveEventController {
     /**
      * Streams live portal payment events and heartbeat messages to the authenticated client.
      *
-     * @param role the authenticated portal role
+     * @param role       the authenticated portal role
      * @param merchantId the merchant identifier
      * @return the resulting {@code ResponseEntity<SseEmitter>} value
      */
     @GetMapping(value = "/events", produces = MediaType.TEXT_EVENT_STREAM_VALUE)
-    public ResponseEntity<SseEmitter> events(
-            @RequestHeader(ROLE_HEADER) String role,
+    public ResponseEntity<SseEmitter> events(@RequestHeader(ROLE_HEADER) String role,
             @RequestHeader(value = "X-Merchant-Id", required = false) UUID merchantId) {
         if (role != null && role.startsWith("MERCHANT_")) {
             authorization.requireMerchantRead(role);
-            if (merchantId == null) throw new IllegalArgumentException("Merchant identity is required for live events");
-        }
-        else {
+            if (merchantId == null)
+                throw new IllegalArgumentException("Merchant identity is required for live events");
+        } else {
             authorization.requireAdminRead(role);
         }
         HttpHeaders headers = new HttpHeaders();
